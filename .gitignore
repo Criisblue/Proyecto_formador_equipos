@@ -1,7 +1,0 @@
-# Archivos compilados de Python
-__pycache__/
-*.pyc
-
-# Guiones internos de la presentación (no son parte del proyecto)
-guion-jamileth.docx
-guion-equipo.docx

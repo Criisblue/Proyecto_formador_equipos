@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Formador de Equipos Complementarios</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --azul: #2563eb; --azul-oscuro: #1e40af;
+    --fondo: #f1f5f9; --tarjeta: #fff;
+    --texto: #0f172a; --suave: #64748b;
+    --verde: #16a34a; --rojo: #dc2626; --borde: #e2e8f0;
+  }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: var(--fondo); color: var(--texto); line-height: 1.5; }
+  .contenedor { max-width: 960px; margin: 0 auto; padding: 20px 14px 60px; }
+  header { text-align: center; margin-bottom: 16px; }
+  header h1 { font-size: 1.45rem; color: var(--azul-oscuro); }
+  header p { color: var(--suave); font-size: 0.88rem; }
+
+  /* Pestañas */
+  .pestanas { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .pestanas button {
+    flex: 1; min-width: 130px; padding: 11px 8px; font-size: 0.92rem; font-weight: 600;
+    border: 1px solid var(--borde); border-radius: 10px; background: var(--tarjeta);
+    color: var(--suave); cursor: pointer;
+  }
+  .pestanas button.activa { background: var(--azul); color: #fff; border-color: var(--azul); }
+  .pestana { display: none; }
+  .pestana.visible { display: block; }
+
+  .caja { background: var(--tarjeta); border: 1px solid var(--borde);
+          border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  .caja h2 { font-size: 1rem; margin-bottom: 10px; }
+  .nota { color: var(--suave); font-size: 0.82rem; }
+
+  input[type=text], select {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--borde);
+    border-radius: 8px; font-size: 0.9rem; background: var(--fondo);
+  }
+  .campo-skill { margin-top: 10px; }
+  .campo-skill label { font-size: 0.83rem; display: flex; justify-content: space-between; }
+  .campo-skill .valor { font-weight: 700; color: var(--azul-oscuro); }
+  input[type=range] { width: 100%; accent-color: var(--azul); }
+
+  .boton { border: none; border-radius: 8px; padding: 10px 16px;
+           font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+  .principal { background: var(--azul); color: #fff; }
+  .principal:hover { background: var(--azul-oscuro); }
+  .secundario { background: transparent; border: 1px solid var(--azul); color: var(--azul); }
+  .peligro { background: transparent; border: 1px solid var(--rojo); color: var(--rojo); }
+  .ancho { width: 100%; margin-top: 12px; }
+  .mini { font-size: 0.78rem; padding: 5px 9px; }
+
+  .dos-columnas { display: grid; grid-template-columns: 300px 1fr; gap: 14px; align-items: start; }
+  @media (max-width: 760px) { .dos-columnas { grid-template-columns: 1fr; } }
+
+  .controles { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .controles input { flex: 1; min-width: 120px; }
+  .controles select { width: auto; }
+
+  .persona { border: 1px solid var(--borde); border-radius: 10px;
+             padding: 10px 12px; margin-bottom: 8px; }
+  .persona .fila { display: flex; align-items: center; gap: 8px; }
+  .persona .nombre { font-weight: 700; }
+  .persona .prom { font-size: 0.75rem; color: var(--suave); }
+  .persona .fila button { margin-left: auto; }
+  .barras { display: flex; gap: 5px; margin-top: 8px; }
+  .barra-skill { flex: 1; text-align: center; }
+  .barra-skill .tubo { height: 32px; background: var(--fondo); border-radius: 4px;
+                       display: flex; align-items: flex-end; overflow: hidden; }
+  .barra-skill .tubo > div { width: 100%; background: var(--azul); }
+  .barra-skill span { font-size: 0.6rem; color: var(--suave); display: block; margin-top: 2px; }
+
+  .tarjeta-pareja { border: 1px solid var(--borde); border-radius: 12px;
+                    padding: 14px; margin-bottom: 12px; }
+  .tarjeta-pareja.top { border: 2px solid var(--verde); }
+  table.desglose { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.8rem; }
+  table.desglose td { padding: 4px 6px; border-top: 1px solid var(--borde); }
+  table.desglose td.aporta { color: var(--verde); font-weight: 600; text-align: right; }
+
+  #lienzo3d { width: 100%; height: 460px; display: block; cursor: grab;
+              background: #0b1226; border-radius: 12px; }
+
+  .aviso-flotante { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: var(--texto); color: #fff; padding: 10px 18px; border-radius: 999px;
+    font-size: 0.85rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 10; }
+  .aviso-flotante.visible { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="contenedor">
+
+  <header>
+    <h1>🤝 Formador de Equipos Complementarios</h1>
+    <p>Un grafo bipartito: personas conectadas a 5 skills con nivel 1–10.
+       El sistema forma equipos que se complementan.</p>
+  </header>
+
+  <nav class="pestanas">
+    <button data-tab="registrar" class="activa">📝 Registrar</button>
+    <button data-tab="formar">🎯 Formar equipos</button>
+    <button data-tab="demo">🧠 Paso a paso</button>
+    <button data-tab="grafo">🌐 Grafo 3D</button>
+  </nav>
+
+  <!-- ============ PESTAÑA 1: REGISTRAR ============ -->
+  <section id="tab-registrar" class="pestana visible">
+    <div class="dos-columnas">
+      <div>
+        <div class="caja">
+          <h2>Nueva persona</h2>
+          <input type="text" id="nombre" placeholder="Nombre" maxlength="30">
+          <div id="campos-skills"></div>
+          <button class="boton principal ancho" id="boton-agregar">Registrar en el grafo</button>
+          <p class="nota" style="margin-top:8px">Crea 1 nodo + 5 aristas ponderadas.</p>
+        </div>
+        <div class="caja">
+          <h2>Acciones</h2>
+          <div class="controles">
+            <button class="boton secundario" id="boton-deshacer">↶ Deshacer (<span id="n-historial">0</span>)</button>
+            <button class="boton peligro" id="boton-vaciar">🗑 Vaciar</button>
+          </div>
+          <p class="nota">Cada acción se apila; deshacer revierte la más reciente (pila, LIFO).</p>
+        </div>
+      </div>
+      <div class="caja">
+        <h2>Personas en el grafo (<span id="n-personas">0</span>)</h2>
+        <div class="controles">
+          <input type="text" id="buscar" placeholder="🔍 Buscar (búsqueda lineal)">
+          <select id="orden">
+            <option value="llegada">Orden de llegada</option>
+            <option value="nombre">Nombre A–Z (ord. inserción)</option>
+            <option value="promedio">Mejor promedio (ord. inserción)</option>
+          </select>
+        </div>
+        <div id="lista-personas"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PESTAÑA 2: FORMAR EQUIPOS ============ -->
+  <section id="tab-formar" class="pestana">
+    <div class="caja">
+      <h2>Repartir toda la clase en equipos</h2>
+      <div class="controles">
+        <select id="tamano">
+          <option value="2">Parejas (2)</option>
+          <option value="3">Tríos (3)</option>
+          <option value="4">Equipos de 4</option>
+          <option value="5">Equipos de 5</option>
+        </select>
+        <button class="boton principal" id="boton-formar">Formar equipos (cola FIFO + voraz)</button>
+      </div>
+      <p class="nota" style="margin-top:8px">Todos entran a una fila por orden de llegada; el primero
+         funda equipo y recluta, uno a uno, a quien más cobertura aporta (por cada skill cuenta el
+         mejor del equipo; máximo 50). El último equipo puede quedar incompleto.</p>
+    </div>
+    <div id="resultado-equipos"></div>
+  </section>
+
+  <!-- ============ PESTAÑA 3: PASO A PASO (demos didácticas) ============ -->
+  <section id="tab-demo" class="pestana">
+    <div class="caja">
+      <h2>El algoritmo, en vivo sobre el grafo</h2>
+      <div class="controles">
+        <select id="tamano-demo">
+          <option value="2">Parejas (2)</option>
+          <option value="3">Tríos (3)</option>
+          <option value="4">Equipos de 4</option>
+          <option value="5">Equipos de 5</option>
+        </select>
+        <button class="boton principal" id="boton-demo-voraz">▶ Voraz paso a paso</button>
+        <select id="persona-bfs"></select>
+        <button class="boton secundario" id="boton-demo-bfs">🌊 Recorrido BFS</button>
+      </div>
+      <div class="controles">
+        <button class="boton secundario" id="demo-prev">◀ Anterior</button>
+        <button class="boton secundario" id="demo-next">Siguiente ▶</button>
+        <span class="nota" id="demo-pos"></span>
+      </div>
+      <p id="demo-caption" style="font-size:0.95rem;margin-top:4px">Elige una demostración:
+         el reclutamiento <strong>voraz</strong> (reproduce la traza real del algoritmo) o el
+         recorrido <strong>BFS</strong> por ondas desde una persona.</p>
+    </div>
+    <div class="caja"><div id="vista2d"><p class="nota">Registra personas para ver el grafo aquí.</p></div></div>
+  </section>
+
+  <!-- ============ PESTAÑA 4: GRAFO 3D ============ -->
+  <section id="tab-grafo" class="pestana">
+    <div class="caja">
+      <h2>El grafo en vivo</h2>
+      <canvas id="lienzo3d"></canvas>
+      <p class="nota" style="margin-top:8px">Skills al centro (verde), personas orbitando.
+        Grosor de arista = nivel 1–10. Arrastra para rotar. Si ya formaste equipos,
+        los integrantes de cada uno se unen con líneas directas de color.</p>
+    </div>
+  </section>
+</div>
+
+<div class="aviso-flotante" id="aviso"></div>
+
+<script>
+"use strict";
+// ============================================================
+// LÓGICA DE INTERFAZ (pestañas, formulario, llamadas a la API)
+// ============================================================
+const $ = (id) => document.getElementById(id);
+let SKILLS = [];          // catálogo (viene del servidor)
+let MAXIMO = 50;          // cobertura perfecta (10 x 5)
+let ultimosEquipos = null; // resultado de "formar equipos" (para el 3D)
+
+function avisar(texto) {
+  const aviso = $("aviso");
+  aviso.textContent = texto;
+  aviso.classList.add("visible");
+  setTimeout(() => aviso.classList.remove("visible"), 2200);
+}
+
+async function api(ruta, metodo = "GET", cuerpo = null) {
+  const opciones = { method: metodo };
+  if (cuerpo) {
+    opciones.headers = { "Content-Type": "application/json" };
+    opciones.body = JSON.stringify(cuerpo);
+  }
+  const respuesta = await fetch(ruta, opciones);
+  let datos;
+  try {
+    datos = await respuesta.json();
+  } catch (e) {
+    // El servidor respondió algo que no es JSON (ej. un 404 de una
+    // versión vieja): avisar en pantalla en vez de fallar en silencio.
+    avisar("⚠ Error " + respuesta.status + " — detén el servidor (Ctrl+C), vuelve a ejecutar python servidor.py y recarga con Ctrl+F5");
+    throw e;
+  }
+  if (datos.error) { avisar("⚠ " + datos.error); throw new Error(datos.error); }
+  return datos;
+}
+
+// ---------- Pestañas ----------
+document.querySelectorAll(".pestanas button").forEach((boton) => {
+  boton.addEventListener("click", () => {
+    document.querySelectorAll(".pestanas button").forEach(b => b.classList.remove("activa"));
+    document.querySelectorAll(".pestana").forEach(s => s.classList.remove("visible"));
+    boton.classList.add("activa");
+    $("tab-" + boton.dataset.tab).classList.add("visible");
+    if (boton.dataset.tab === "grafo") cargarGrafo3D();
+    if (boton.dataset.tab === "demo") cargarVista2D();
+  });
+});
+
+// ---------- Formulario: un slider 1-10 por skill ----------
+function dibujarFormulario() {
+  const contenedor = $("campos-skills");
+  contenedor.innerHTML = "";
+  SKILLS.forEach((skill) => {
+    const div = document.createElement("div");
+    div.className = "campo-skill";
+    div.innerHTML = `
+      <label>${skill.nombre} <span class="valor" id="v-${skill.id}">5</span></label>
+      <input type="range" min="1" max="10" value="5" id="s-${skill.id}">`;
+    contenedor.appendChild(div);
+    $("s-" + skill.id).addEventListener("input", (e) => {
+      $("v-" + skill.id).textContent = e.target.value;
+    });
+  });
+}
+
+// ---------- Lista de personas ----------
+function barrasDe(niveles) {
+  return `<div class="barras">` + SKILLS.map((skill) => {
+    const nivel = niveles[skill.id] || 0;
+    return `<div class="barra-skill">
+      <div class="tubo"><div style="height:${nivel * 10}%"></div></div>
+      <span>${skill.nombre.slice(0, 8)} ${nivel}</span></div>`;
+  }).join("") + `</div>`;
+}
+
+async function cargarEstado() {
+  const datos = await api(`/api/estado?buscar=${encodeURIComponent($("buscar").value)}&orden=${$("orden").value}`);
+  if (SKILLS.length === 0) { SKILLS = datos.skills; MAXIMO = datos.maximo; dibujarFormulario(); }
+  $("n-historial").textContent = datos.acciones_en_historial;
+  $("n-personas").textContent = datos.personas.length;
+
+  const lista = $("lista-personas");
+  lista.innerHTML = datos.personas.length ? "" :
+    `<p class="nota">El grafo está vacío: registra a la primera persona.</p>`;
+  datos.personas.forEach((persona) => {
+    const div = document.createElement("div");
+    div.className = "persona";
+    div.innerHTML = `
+      <div class="fila">
+        <span class="nombre">${persona.nombre}</span>
+        <span class="prom">promedio ${persona.promedio}/10</span>
+        <button class="boton peligro mini" data-eliminar="${persona.id}">✕</button>
+      </div>
+      ${barrasDe(persona.niveles)}`;
+    lista.appendChild(div);
+  });
+}
+
+$("lista-personas").addEventListener("click", async (evento) => {
+  const boton = evento.target.closest("[data-eliminar]");
+  if (!boton) return;
+  await api("/api/eliminar", "POST", { id: boton.dataset.eliminar });
+  avisar("Nodo eliminado (con sus 5 aristas)");
+  ultimosEquipos = null;
+  cargarEstado();
+});
+
+$("boton-agregar").addEventListener("click", async () => {
+  const nombre = $("nombre").value.trim();
+  if (!nombre) { avisar("⚠ Escribe un nombre"); return; }
+  const niveles = {};
+  SKILLS.forEach((skill) => niveles[skill.id] = parseInt($("s-" + skill.id).value, 10));
+  await api("/api/personas", "POST", { nombre, niveles });
+  avisar(`${nombre}: 1 nodo + 5 aristas nuevas`);
+  $("nombre").value = "";
+  ultimosEquipos = null;
+  cargarEstado();
+});
+
+$("boton-deshacer").addEventListener("click", async () => {
+  const datos = await api("/api/deshacer", "POST", {});
+  avisar("↶ " + datos.mensaje);
+  ultimosEquipos = null;
+  cargarEstado();
+});
+
+$("boton-vaciar").addEventListener("click", async () => {
+  await api("/api/vaciar", "POST", {});
+  avisar("Grafo vaciado (puedes deshacer)");
+  ultimosEquipos = null;
+  cargarEstado();
+});
+
+$("buscar").addEventListener("input", cargarEstado);
+$("orden").addEventListener("change", cargarEstado);
+
+// ---------- Tarjeta de "colapso" (para equipos de 2) ----------
+function tarjetaColapso(nombreA, nombreB, puntaje) {
+  // Dibuja: (A) ——peso——ancho proporcional—— (B)  puntaje/50
+  const grosor = 2 + (puntaje / MAXIMO) * 10;
+  return `<svg viewBox="0 0 340 80" style="width:100%;max-width:360px">
+    <line x1="60" y1="40" x2="280" y2="40" stroke="#2563eb" stroke-width="${grosor}"/>
+    <circle cx="52" cy="40" r="30" fill="#eff6ff" stroke="#2563eb"/>
+    <circle cx="288" cy="40" r="30" fill="#eff6ff" stroke="#2563eb"/>
+    <text x="52" y="44" text-anchor="middle" font-size="11" font-weight="700" fill="#1e40af">${nombreA.slice(0,9)}</text>
+    <text x="288" y="44" text-anchor="middle" font-size="11" font-weight="700" fill="#1e40af">${nombreB.slice(0,9)}</text>
+    <text x="170" y="28" text-anchor="middle" font-size="15" font-weight="800" fill="#1e40af">${puntaje}/${MAXIMO}</text>
+  </svg>`;
+}
+
+function tablaDesglose(detalle, mapaNombres) {
+  return `<table class="desglose">` + SKILLS.map((skill) => {
+    const dato = detalle[skill.id];
+    return `<tr><td>${skill.nombre}</td><td>nivel ${dato.nivel}/10</td>
+      <td class="aporta">aporta ${dato.aporta ? (mapaNombres[dato.aporta] || "—") : "—"}</td></tr>`;
+  }).join("") + `</table>`;
+}
+
+// ---------- Pestaña Formar equipos ----------
+const COLORES_EQUIPO = ["#7c3aed", "#0d9488", "#ea580c", "#db2777", "#65a30d", "#0284c7"];
+
+$("boton-formar").addEventListener("click", async () => {
+  const tamano = parseInt($("tamano").value, 10);
+  const datos = await api("/api/equipos", "POST", { tamano });
+  ultimosEquipos = datos.equipos;
+  const contenedor = $("resultado-equipos");
+  contenedor.innerHTML = "";
+  datos.equipos.forEach((equipo, indice) => {
+    const color = COLORES_EQUIPO[indice % COLORES_EQUIPO.length];
+    const mapa = {};
+    equipo.miembros.forEach(m => mapa[m.id] = m.nombre);
+    const nombres = equipo.miembros.map(m => m.nombre).join(" + ");
+    const div = document.createElement("div");
+    div.className = "tarjeta-pareja";
+    div.style.borderColor = color;
+    if (equipo.miembros.length === 2) {
+      // Para parejas: la tarjeta de colapso (línea con el puntaje).
+      div.innerHTML = `
+        ${tarjetaColapso(equipo.miembros[0].nombre, equipo.miembros[1].nombre, equipo.cobertura)}
+        ${tablaDesglose(equipo.detalle, mapa)}`;
+    } else if (equipo.miembros.length > 2) {
+      div.innerHTML = `
+        <strong style="color:${color}">Equipo ${indice + 1}: ${nombres}</strong>
+        <p class="nota">Cobertura conjunta: ${equipo.cobertura}/${MAXIMO}
+           (${equipo.cobertura_pct}%)${equipo.miembros.length < tamano ? " — incompleto" : ""}</p>
+        ${tablaDesglose(equipo.detalle, mapa)}`;
+    } else {
+      div.innerHTML = `<strong>${equipo.miembros[0].nombre}</strong>
+        <p class="nota">Quedó sin equipo (las cuentas no dieron exactas).
+        Cobertura individual: ${equipo.cobertura}/${MAXIMO}.</p>`;
+    }
+    contenedor.appendChild(div);
+  });
+  avisar("Equipos formados — míralos también en la pestaña Grafo 3D");
+});
+
+// ============================================================
+// PESTAÑA PASO A PASO — vista 2D del bipartito + demos en vivo.
+// No calcula nada: reproduce la traza que generó Python.
+// ============================================================
+let vista = null;   // nodos y aristas del grafo (viene de /api/grafo)
+let demo = null;    // demo activa: {tipo: "voraz"|"bfs", pasos, i}
+
+async function cargarVista2D() {
+  vista = await api("/api/grafo");
+  $("persona-bfs").innerHTML = vista.personas.map(p =>
+    `<option value="${p.id}">${p.nombre}</option>`).join("");
+  demo = null;
+  $("demo-pos").textContent = "";
+  dibujarVista2D({});
+}
+
+// Posiciones verticales: personas a la izquierda, skills a la derecha.
+function posicionesVista() {
+  const nP = Math.max(vista.personas.length, 1);
+  const alto = Math.max(320, 60 + Math.max(nP, 5) * 56);
+  return {
+    alto: alto,
+    yPersona: (i) => 40 + (i + 0.5) * (alto - 60) / nP,
+    ySkill: (i) => 40 + (i + 0.5) * (alto - 60) / 5,
+  };
+}
+
+// Dibuja el bipartito en 2D. 'extras' pinta el estado de la demo:
+//   colores: {id_persona: color de su equipo}
+//   badges:  {id_persona: texto (puntaje de candidato)}
+//   visitas: {id_nodo: {orden, nivel}}  (para BFS)
+//   arcos:   [[idA, idB, color], ...]  (uniones de equipo)
+//   resaltar: id de la persona activa en este paso
+function dibujarVista2D(extras) {
+  if (!vista || vista.personas.length === 0) {
+    $("vista2d").innerHTML = "<p class='nota'>Registra personas para ver el grafo aquí.</p>";
+    return;
+  }
+  const pos = posicionesVista();
+  const yP = {}, yS = {};
+  vista.personas.forEach((p, i) => yP[p.id] = pos.yPersona(i));
+  vista.skills.forEach((s, i) => yS[s.id] = pos.ySkill(i));
+
+  let svg = `<svg viewBox="0 0 700 ${pos.alto}" style="width:100%">`;
+  vista.aristas.forEach((a) => {
+    svg += `<line x1="186" y1="${yP[a.persona]}" x2="468" y2="${yS[a.skill]}"
+      stroke="#94a3b8" stroke-width="${0.4 + a.peso * 0.28}" opacity="0.45"/>`;
+  });
+  (extras.arcos || []).forEach(([a, b, color]) => {
+    svg += `<path d="M 150 ${yP[a]} Q 52 ${(yP[a] + yP[b]) / 2} 150 ${yP[b]}"
+      fill="none" stroke="${color}" stroke-width="3"/>`;
+  });
+  vista.skills.forEach((s) => {
+    const v = (extras.visitas || {})[s.id];
+    svg += `<rect x="468" y="${yS[s.id] - 15}" width="186" height="30" rx="6"
+        fill="${v ? "#fef3c7" : "#f0fdf4"}" stroke="${v ? "#d97706" : "#16a34a"}"/>
+      <text x="478" y="${yS[s.id]}" dominant-baseline="central" font-size="12">
+        ${s.nombre}${v ? " · visita " + v.orden : ""}</text>`;
+  });
+  vista.personas.forEach((p) => {
+    const v = (extras.visitas || {})[p.id];
+    const relleno = v ? "#fef3c7" : ((extras.colores || {})[p.id] || "#e0e7ff");
+    const grosorBorde = extras.resaltar === p.id ? 4 : 1.5;
+    svg += `<circle cx="150" cy="${yP[p.id]}" r="17" fill="${relleno}"
+        stroke="#1e40af" stroke-width="${grosorBorde}"/>
+      <text x="126" y="${yP[p.id]}" text-anchor="end" dominant-baseline="central"
+        font-size="13" font-weight="600">${p.nombre}</text>`;
+    if (v) svg += `<text x="150" y="${yP[p.id]}" text-anchor="middle"
+        dominant-baseline="central" font-size="11" font-weight="700">${v.orden}</text>`;
+    const badge = (extras.badges || {})[p.id];
+    if (badge) svg += `<text x="196" y="${yP[p.id] - 14}" font-size="12"
+        font-weight="700" fill="#ea580c">${badge}</text>`;
+  });
+  svg += `</svg>`;
+  $("vista2d").innerHTML = svg;
+}
+
+// --- Demo voraz: reproduce la traza generada por formar_equipos() ---
+$("boton-demo-voraz").addEventListener("click", async () => {
+  const tamano = parseInt($("tamano-demo").value, 10);
+  const datos = await api("/api/equipos", "POST", { tamano });
+  await cargarVista2D();
+  demo = { tipo: "voraz", pasos: datos.traza, i: 0 };
+  pintarDemo();
+});
+
+// --- Demo BFS: reproduce el orden de visita de bfs() ---
+$("boton-demo-bfs").addEventListener("click", async () => {
+  const id = $("persona-bfs").value;
+  if (!id) { avisar("⚠ Registra personas primero"); return; }
+  const datos = await api(`/api/bfs?id=${id}`);
+  demo = { tipo: "bfs", pasos: datos.orden, i: 0 };
+  pintarDemo();
+});
+
+function pintarDemo() {
+  if (!demo) return;
+  const extras = {};
+  let caption = "";
+
+  if (demo.tipo === "voraz") {
+    // Estado = aplicar todos los pasos de la traza hasta el actual.
+    extras.colores = {}; extras.arcos = [];
+    for (let k = 0; k <= demo.i; k++) {
+      const paso = demo.pasos[k];
+      const color = COLORES_EQUIPO[(paso.equipo - 1) % COLORES_EQUIPO.length];
+      if (paso.tipo === "funda") {
+        extras.colores[paso.id] = color;
+        if (k === demo.i) {
+          extras.resaltar = paso.id;
+          caption = `👤 ${paso.nombre} sale de la COLA (era el primero de la fila) y funda el equipo ${paso.equipo}.`;
+        }
+      } else if (paso.tipo === "ronda") {
+        extras.colores[paso.gana] = color;
+        if (k === demo.i) {
+          extras.resaltar = paso.gana;
+          paso.candidatos.forEach(c => extras.badges = Object.assign(extras.badges || {}, { [c.id]: c.puntaje + "/50" }));
+          const lista = paso.candidatos.map(c => `${c.nombre} ${c.puntaje}`).join(", ");
+          caption = `⚖️ Ronda VORAZ del equipo ${paso.equipo}: se prueba la cobertura con cada libre (${lista}) → entra ${paso.nombre_gana} con ${paso.puntaje}/50, el mejor de AHORA.`;
+        }
+      } else if (paso.tipo === "cierra") {
+        for (let a = 0; a < paso.miembros.length; a++)
+          for (let b = a + 1; b < paso.miembros.length; b++)
+            extras.arcos.push([paso.miembros[a], paso.miembros[b], color]);
+        if (k === demo.i)
+          caption = `✅ Equipo ${paso.equipo} cerrado: ${paso.nombres.join(" + ")} — cobertura ${paso.puntaje}/50.`;
+      } else if (paso.tipo === "salta" && k === demo.i) {
+        extras.resaltar = paso.id;
+        caption = `⏭ ${paso.nombre} sale de la cola, pero ya fue reclutado por un equipo anterior: se salta.`;
+      }
+    }
+  } else {
+    // BFS: estado = los primeros i+1 nodos visitados, con su onda.
+    extras.visitas = {};
+    for (let k = 0; k <= demo.i; k++) {
+      const v = demo.pasos[k];
+      extras.visitas[v.id] = { orden: v.orden, nivel: v.nivel };
+    }
+    const actual = demo.pasos[demo.i];
+    const onda = actual.nivel === 0 ? "es el punto de partida" :
+      `está en la onda ${actual.nivel}` + (actual.nivel === 1 ? " (vecino directo)" : " (vecino de un vecino)");
+    caption = `🌊 Visita ${actual.orden}: ${actual.nombre} — ${onda}. La COLA atiende en el orden en que cada nodo fue descubierto.`;
+    if (demo.i === demo.pasos.length - 1)
+      caption += " Recorrido completo: todo el grafo, por niveles de cercanía.";
+  }
+
+  dibujarVista2D(extras);
+  $("demo-caption").textContent = caption;
+  $("demo-pos").textContent = `Paso ${demo.i + 1} de ${demo.pasos.length}`;
+}
+
+$("demo-prev").addEventListener("click", () => {
+  if (demo && demo.i > 0) { demo.i--; pintarDemo(); }
+});
+$("demo-next").addEventListener("click", () => {
+  if (demo && demo.i < demo.pasos.length - 1) { demo.i++; pintarDemo(); }
+});
+
+/* ============================================================
+   SOLO DIBUJO 3D — capa de presentación, sin lógica de datos.
+   Cada nodo tiene coordenadas (x, y, z); rotar es seno y coseno;
+   proyectar a pantalla es una división por la profundidad.
+   ============================================================ */
+let nodos3d = [], aristas3d = [], rotY = 0, rotX = 0.3, arrastre = null;
+const lienzo = $("lienzo3d");
+const ctx = lienzo.getContext("2d");
+
+async function cargarGrafo3D() {
+  const g = await api("/api/grafo");
+  nodos3d = [];
+  g.skills.forEach((s, i) => {              // skills: anillo interior
+    const angulo = i / g.skills.length * Math.PI * 2;
+    nodos3d.push({ id: s.id, nombre: s.nombre, tipo: "skill",
+      x: 75 * Math.cos(angulo), y: 45 * Math.sin(i * 2.4), z: 75 * Math.sin(angulo) });
+  });
+  g.personas.forEach((p, i) => {            // personas: órbita exterior
+    const angulo = i / Math.max(g.personas.length, 1) * Math.PI * 2 + 0.5;
+    nodos3d.push({ id: p.id, nombre: p.nombre, tipo: "persona",
+      x: 185 * Math.cos(angulo), y: 70 * Math.sin(angulo * 1.7), z: 185 * Math.sin(angulo) });
+  });
+  aristas3d = g.aristas;
+}
+
+function proyectar(nodo) {
+  // Rotación en Y y X (seno/coseno) + proyección en perspectiva.
+  const cy = Math.cos(rotY), sy = Math.sin(rotY);
+  const cx = Math.cos(rotX), sx = Math.sin(rotX);
+  let x = nodo.x * cy + nodo.z * sy;
+  let z = -nodo.x * sy + nodo.z * cy;
+  let y = nodo.y * cx - z * sx;
+  z = nodo.y * sx + z * cx;
+  const escala = 430 / (430 + z);   // más lejos = más pequeño
+  return { x: lienzo.width / 2 + x * escala, y: lienzo.height / 2 + y * escala,
+           escala: escala, z: z };
+}
+
+lienzo.addEventListener("pointerdown", (e) => {
+  arrastre = { x: e.clientX, y: e.clientY };
+  lienzo.setPointerCapture(e.pointerId);
+});
+lienzo.addEventListener("pointermove", (e) => {
+  if (!arrastre) return;
+  rotY += (e.clientX - arrastre.x) * 0.008;
+  rotX = Math.max(-1.2, Math.min(1.2, rotX + (e.clientY - arrastre.y) * 0.005));
+  arrastre = { x: e.clientX, y: e.clientY };
+});
+lienzo.addEventListener("pointerup", () => arrastre = null);
+
+function colorDeEquipo(idPersona) {
+  if (!ultimosEquipos) return null;
+  for (let i = 0; i < ultimosEquipos.length; i++) {
+    if (ultimosEquipos[i].miembros.length >= 2 &&
+        ultimosEquipos[i].miembros.some(m => m.id === idPersona)) {
+      return COLORES_EQUIPO[i % COLORES_EQUIPO.length];
+    }
+  }
+  return null;
+}
+
+function cuadro3d() {
+  lienzo.width = lienzo.clientWidth; lienzo.height = 460;
+  if (!arrastre) rotY += 0.005;
+  ctx.clearRect(0, 0, lienzo.width, lienzo.height);
+  if (nodos3d.length === 0) { requestAnimationFrame(cuadro3d); return; }
+
+  const proyectados = {};
+  nodos3d.forEach(n => proyectados[n.id] = proyectar(n));
+
+  // Aristas persona-skill (grosor = nivel 1-10).
+  aristas3d.forEach((arista) => {
+    const A = proyectados[arista.persona], B = proyectados[arista.skill];
+    if (!A || !B) return;
+    ctx.strokeStyle = "#8b9cf7";
+    ctx.globalAlpha = 0.10 + 0.45 * (arista.peso / 10) * ((A.escala + B.escala) / 2);
+    ctx.lineWidth = (0.4 + arista.peso * 0.3) * ((A.escala + B.escala) / 2);
+    ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+  });
+
+  // Líneas directas entre los integrantes de cada equipo formado:
+  // cada par de miembros se une, y la cobertura va en el centro.
+  if (ultimosEquipos) {
+    ultimosEquipos.forEach((equipo, indice) => {
+      const miembros = equipo.miembros.filter(m => proyectados[m.id]);
+      if (miembros.length < 2) return;
+      ctx.strokeStyle = COLORES_EQUIPO[indice % COLORES_EQUIPO.length];
+      ctx.globalAlpha = 0.95; ctx.lineWidth = 3;
+      let cx = 0, cy = 0;
+      for (let a = 0; a < miembros.length; a++) {
+        const A = proyectados[miembros[a].id];
+        cx += A.x; cy += A.y;
+        for (let b = a + 1; b < miembros.length; b++) {
+          const B = proyectados[miembros[b].id];
+          ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+        }
+      }
+      ctx.fillStyle = "#fff"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center";
+      ctx.fillText(equipo.cobertura + "/" + MAXIMO,
+                   cx / miembros.length, cy / miembros.length - 6);
+    });
+  }
+  ctx.globalAlpha = 1;
+
+  // Nodos (los más lejanos primero, para que los cercanos tapen).
+  nodos3d.slice().sort((a, b) => proyectados[a.id].z - proyectados[b.id].z)
+    .forEach((nodo) => {
+      const p = proyectados[nodo.id];
+      const radio = (nodo.tipo === "skill" ? 9 : 13) * p.escala;
+      ctx.beginPath(); ctx.arc(p.x, p.y, radio, 0, Math.PI * 2);
+      ctx.fillStyle = nodo.tipo === "skill" ? "#34d399"
+        : (colorDeEquipo(nodo.id) || "#a5b4fc");
+      ctx.globalAlpha = 0.5 + 0.5 * p.escala; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.font = (11 * p.escala | 0) + "px sans-serif"; ctx.textAlign = "center";
+      ctx.fillStyle = "#e2e8f0";
+      ctx.fillText(nodo.nombre, p.x, p.y - radio - 5);
+    });
+
+  requestAnimationFrame(cuadro3d);
+}
+/* ================== FIN DEL BLOQUE 3D ==================== */
+
+cargarEstado();
+cuadro3d();
+</script>
+</body>
+</html>
